@@ -1,0 +1,16 @@
+warning: in the working copy of 'package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+src/middleware/error.middleware.js:22: trailing whitespace.
+[32m+[m[41m        [m
+src/modules/authentication/authentication.service.js:121: trailing whitespace.
+[32m+[m[32m            title[m[41m [m
+src/modules/authentication/authentication.service.js:256: trailing whitespace.
+[32m+[m[41m    [m
+src/modules/authentication/authentication.service.js:421: trailing whitespace.
+[32m+[m[41m    [m
+src/modules/authentication/authentication.service.js:441: trailing whitespace.
+[32m+[m[32m        throw NotFoundException({[m[41m                                                                                                               [m
+src/modules/user/user.controller.js:32: trailing whitespace.
+[32m+[m[41m        [m
+src/modules/user/user.service.js:39: trailing whitespace.
+[32m+[m[41m         [m

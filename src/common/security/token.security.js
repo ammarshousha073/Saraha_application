@@ -7,12 +7,13 @@ import {
     REFRESH_ADMIN_TOKEN_SIGNATURE,
     REFRESH_TOKEN_EXPIRES_IN,
     REFRESH_USER_TOKEN_SIGNATURE,
-    JWT_ISSUER
+    JWT_ISSUER,
 } from "../../config.js";
 
 import {
     BadRequestException,
-    NotFoundException
+    NotFoundException,
+    UnauthorizedException,
 } from "../exeptions/error.exeptions.js";
 
 import { findById, findOne } from "../respository/base.repository.js";
@@ -20,7 +21,8 @@ import { UserModel } from "../../DB/model/user.model.js";
 import { TokenTypeEnum } from "../enum/security.enum.js";
 import { ROLE_ENUM } from "../enum/user.gender.js";
 import { compare } from "bcrypt";
-
+import { get } from "../services/cache.service.js";
+import { userBaseRevokeTokenKey } from "../utlis/index.js";
 
 export const createToken = async ({
     payload = {},
@@ -96,64 +98,91 @@ const getSignature = async ({
 
 export const decodeToken = async ({
     authorization = "",
-    tokentype = TokenTypeEnum.ACCESS
+    credential,
+    tokentype = TokenTypeEnum.ACCESS,
 } = {}) => {
+    const token =
+        credential ||
+        authorization.split(" ")[1];
 
-    console.log("================================");
-    console.log("AUTHORIZATION:", authorization);
-    console.log("AUTH TYPE:", typeof authorization);
-    console.log("================================");
-
-    const [bearer, token] = authorization.split(" ");
-
-    console.log("BEARER:", bearer);
-    console.log("TOKEN:", token);
-
-    if (bearer !== "Bearer" || !token) {
-        throw BadRequestException("Invalid authorization header");
+    if (!token) {
+        throw BadRequestException({
+            message: "Missing token",
+        });
     }
 
     const decoded = jwt.decode(token);
 
-    console.log("DECODED:", decoded);
-
-    if (!decoded?.aud?.length) {
-        throw BadRequestException("MISSING TOKEN PAYLOAD");
+    if (!decoded?.aud) {
+        throw BadRequestException({
+            message: "Invalid token payload",
+        });
     }
+
+    const role = Array.isArray(decoded.aud)
+        ? decoded.aud[0]
+        : decoded.aud;
 
     const secret = await getSignature({
         tokentype,
-        role: decoded.aud[0]
+        role,
     });
-
-    console.log("ROLE:", decoded.aud[0]);
-    console.log("SECRET EXISTS:", !!secret);
 
     const payload = await verifyToken({
         token,
-        secret
+        secret,
     });
 
-    console.log("PAYLOAD:", payload);
-
-    if (!payload?.sub) {
-        throw BadRequestException("missing token payload");
+    if (!payload?.sub || !payload?.iat) {
+        throw BadRequestException({
+            message: "Invalid token payload",
+        });
     }
 
     const user = await findById({
         model: UserModel,
-        id: payload.sub
+        id: payload.sub,
     });
 
     if (!user) {
-        throw NotFoundException("Invalid user");
+        throw UnauthorizedException({
+            message: "Invalid user",
+        });
+    }
+
+    // Reject tokens issued before logout from all devices.
+    if (user.changeCredentialsTime) {
+        const invalidBefore = Math.floor(
+            new Date(user.changeCredentialsTime).getTime() / 1000
+        );
+
+        if (payload.iat <= invalidBefore) {
+            throw UnauthorizedException({
+                message: "Token is no longer valid",
+            });
+        }
+    }
+
+    // Check whether this token was individually revoked.
+    const revokeKey =
+        `${userBaseRevokeTokenKey({ userId: payload.sub })}${payload.iat}`;
+
+    const revoked = await get({
+        key: revokeKey,
+    });
+
+    if (revoked) {
+        throw UnauthorizedException({
+            message: "Token has been revoked",
+        });
     }
 
     return {
         user,
-        payload
+        payload,
     };
 };
+
 
 
 export const createLoginCredentials = async ({

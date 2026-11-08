@@ -26,8 +26,35 @@ export const ACCESS_USER_TOKEN_SIGNATURE = process.env.ACCESS_USER_TOKEN_SIGNATU
 export const ACCESS_ADMIN_TOKEN_SIGNATURE = process.env.ACCESS_ADMIN_TOKEN_SIGNATURE;
 export const REFRESH_USER_TOKEN_SIGNATURE = process.env.REFRESH_TOKEN_SIGNATURE;
 export const REFRESH_ADMIN_TOKEN_SIGNATURE = process.env.REFRESH_TOKEN_SIGNATURE;
+//
+export const REDIS_USERNAME = process.env.REDIS_USERNAME;
+export const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
+export const REDIS_HOST = process.env.REDIS_HOST;
+export const REDIS_PORT = parseInt(process.env.REDIS_PORT ?? "15905");
 
 export const REFRESH_TOKEN_EXPIRES_IN = parseInt(process.env.REFRESH_TOKEN_EXPIRES_IN ?? "31536000");
 export const ACCESS_TOKEN_EXPIRES_IN = parseInt(process.env.ACCESS_TOKEN_EXPIRES_IN ?? "1800");
 
 export const JWT_ISSUER = "SarahaAPP_FOR_AMMAR";
+
+export const RATE_LIMIT_CONFIG = {
+    LOGIN: {
+        windowSeconds: 60,
+        maxRequests: 5
+    },
+
+    SIGNUP: {
+        windowSeconds: 60 * 60,
+        maxRequests: 5
+    },
+
+    FORGOT_PASSWORD: {
+        windowSeconds: 15 * 60,
+        maxRequests: 3
+    },
+
+    RESEND_OTP: {
+        windowSeconds: 15 * 60,
+        maxRequests: 3
+    }
+};

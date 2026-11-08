@@ -1,7 +1,7 @@
-import { z } from "zod";
-import { GENDER_ENUM } from "./enum/user.gender.js";
-import { LanguageEnum } from "./enum/security.enum.js";
 
+import { z } from "zod";
+import { LanguageEnum } from "./enum/security.enum.js";
+import mongoose from "mongoose";
 
 const validationMessage = {
     101: {
@@ -51,28 +51,45 @@ const validationMessage = {
     112: {
         ar: "النوع المحدد غير صالح",
         en: "Invalid gender",
-        1001: {
-    ar: "البريد الإلكتروني مستخدم بالفعل",
-    en: "Email already exists",
-},
-1002: {
-    ar: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-    en: "Invalid email or password",
-},
-1014: {
-    ar: "حدث خطأ داخلي في الخادم",
-    en: "Internal server error",
-},
+    },
+    1001: {
+        ar: "البريد الإلكتروني مستخدم بالفعل",
+        en: "Email already exists",
+    },
+    1002: {
+        ar: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+        en: "Invalid email or password",
+    },
+    1003: {
+        ar: "الحساب غير صالح أو تم تأكيد البريد الإلكتروني بالفعل",
+        en: "Invalid account or email already confirmed",
+    },
+    1004: {
+        ar: "انتهت صلاحية رمز التحقق أو أنه غير موجود",
+        en: "OTP has expired or does not exist",
+    },
+    1005: {
+        ar: "رمز التحقق غير صحيح",
+        en: "Invalid OTP",
+    },
+    1014: {
+        ar: "حدث خطأ داخلي في الخادم",
+        en: "Internal server error",
     },
 };
 
-export const getValidationMessage = (code, lang = LanguageEnum.AR) => {
-    const language = lang === LanguageEnum.EN ? "en" : "ar";
+export const getValidationMessage = (
+    code,
+    lang = LanguageEnum.AR
+) => {
+    const language =
+        lang === LanguageEnum.EN ? "en" : "ar";
 
-    return validationMessage[code]?.[language]
-        ?? validationMessage[111][language];
+    return (
+        validationMessage[code]?.[language] ??
+        validationMessage[111][language]
+    );
 };
-
 
 export const getValidationCode = (issue) => {
     const field = issue.path.at(-1);
@@ -88,6 +105,7 @@ export const getValidationCode = (issue) => {
     if (field === "password") {
         if (issue.code === "too_small") return 104;
         if (issue.code === "too_big") return 105;
+        return 111;
     }
 
     if (field === "phone") return 106;
@@ -104,41 +122,97 @@ export const getValidationCode = (issue) => {
     return 111;
 };
 
-const matchFields=({original, copy , data , ctx , lang})=>{
-if (data[original] !== data[copy]) {
-    ctx.addIssue({
-        code: "custom",
-        path: [copy],
-        message: lang == LanguageEnum.AR ? `${original} و ${copy} غير متطابقين` : `${original} and ${copy} do not match`,
-    });
-}}
-
-
+const matchFields = ({ original, copy, data, ctx, lang }) => {
+    if (data[original] !== data[copy]) {
+        ctx.addIssue({
+            code: "custom",
+            path: [copy],
+            message:
+                lang === LanguageEnum.AR
+                    ? `${original} و ${copy} غير متطابقين`
+                    : `${original} and ${copy} do not match`,
+        });
+    }
+};
 
 export const generalValidationFields = {
+    // Login validation
+    email: z.email({
+        message: "Invalid email address",
+    }),
 
-    //login validation
-    email: z.email({ message: "Invalid Email",}),
+    otp: (lang) =>
+        z.string().regex(/^\d{6}$/, {
+            message:
+                lang === LanguageEnum.AR
+                    ? "رمز التحقق يجب أن يكون 6 أرقام"
+                    : "OTP must be 6 digits",
+        }),
 
-    password: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$/).min(8, { message: "Password must be at least 8 characters long" }).max(20, { message: "Password must be at most 20 characters long" }),
+    password: z
+        .string()
+        .min(8, {
+            message: getValidationMessage(104),
+        })
+        .max(20, {
+            message: getValidationMessage(105),
+        })
+        .regex(
+            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$/,
+            {
+                message:
+                    "Password must contain uppercase, lowercase, number, and special character",
+            }
+        ),
 
     issuer: z.string().optional(),
 
+    // Signup validation
+    username: (lang) =>
+        z
+            .string()
+            .min(3, {
+                message: getValidationMessage(102, lang),
+            })
+            .max(50, {
+                message: getValidationMessage(103, lang),
+            }),
 
-    //signup validation
-    username:(lang) => z.string().min(3,{ message: getValidationMessage(102, lang) }).max(50),
+    phone: z.e164({
+        message: getValidationMessage(106),
+    }),
 
-    phone: z.e164(),
-
+    id: (lang) => z.string().refine((data) => { return mongoose.Types.ObjectId.isValid(data) }, { message: lang?.message?.receiverId?.invalid || "Invalid receiverId" }).min(24, { message: lang?.message?.receiverId?.minLength || "receiverId must be at least 24 characters long" }).max(24, { message: lang?.message?.receiverId?.maxLength || "receiverId must be at most 24 characters long" }),
     confirmPassword: z
         .string()
         .min(8, {
-            message: "Confirm Password must be at least 8 characters long",
+            message: getValidationMessage(107),
         })
         .max(20, {
-            message: "Confirm Password must be at most 20 characters long",
+            message: getValidationMessage(108),
         }),
-    // gender : z.union([z.literal(GENDER_ENUM.MALE) , z.literal(GENDER_ENUM.FEMALE)])
+
     gender: z.enum(["0", "1"]).transform(Number),
-    matchFields
-}
+
+    matchFields,
+
+    file: (lang) =>
+        z.strictObject({
+            fieldname: z.string(),
+            originalname: z.string(),
+            encoding: z.string(),
+            mimetype: z.string(),
+            buffer: z.instanceof(Buffer),
+            size: z.number(),
+            path: z.string(),
+
+
+
+        })
+
+};
+export const verifyForgotPasswordCode = () =>
+    z.object({
+        email: generalValidationFields.email,
+        otp: generalValidationFields.otp(LanguageEnum.EN),
+    });

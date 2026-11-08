@@ -1,58 +1,109 @@
-import { TokenTypeEnum } from "../common/enum/security.enum.js"
-import { ForbiddenException, UnauthorizedException } from "../common/exeptions/error.exeptions.js"
-import { basicAuth, decodeToken } from "../common/security/token.security.js"
+import { TokenTypeEnum } from "../common/enum/security.enum.js";
+
+import {
+    ForbiddenException,
+    UnauthorizedException,
+} from "../common/exeptions/error.exeptions.js";
+
+import {
+    basicAuth,
+    decodeToken,
+} from "../common/security/token.security.js";
 
 
 
-export const authentication = (tokentype = TokenTypeEnum.ACCESS) => {
+export const beraerAuth = async ({
+    req,
+    tokentype = TokenTypeEnum.ACCESS
+} = {}) => {
+
+    const [key, credential] =
+        req.headers["authorization"]?.split(" ") || [];
+
+    const { user, payload } = await decodeToken({
+        credential,
+        tokentype
+    });
+
+    req.user = user;
+    req.payload = payload;
+};
+
+
+
+
+
+export const authentication = (
+    tokentype = TokenTypeEnum.ACCESS
+) => {
     return async (req, res, next) => {
-        const { authorization } = req.headers;
+        try {
+            const { authorization } = req.headers;
 
-        if (!authorization) {
-            throw UnauthorizedException("Unauthoized Account");
-        }
+            if (!authorization) {
+                throw UnauthorizedException({
+                    message: "Unauthorized Account",
+                });
+            }
 
-        const [key, credential] = authorization.split(" ") || [];
-        console.log(key, credential);
+            const [key, credential] = authorization.split(" ");
 
+            switch (key) {
+                case "Basic": {
+                    const decoded = Buffer.from(
+                        credential,
+                        "base64"
+                    ).toString();
 
-        switch (key) {
-            case "Basic":
-                const [email , password] = Buffer.from(credential, 'base64').toString().split (":");
-                console.log({email , password });
-                req.user = await basicAuth({ email , password})
-                break;
+                    const separatorIndex = decoded.indexOf(":");
 
-            case "Bearer":
-                const { user, payload } = await
-                    decodeToken
-                        ({
-                            authorization,
-                            credential,
-                            tokentype
+                    if (separatorIndex === -1) {
+                        throw UnauthorizedException({
+                            message: "Invalid Basic credentials",
                         });
-                req.user = user
-                req.payload = payload
-break 
-            default:
-                next(new Error ("INVALID AUTHENTICATION SCHEMA" , {cause : {status : 400}} ))
+                    }
 
-                break;
+                    const email = decoded.slice(0, separatorIndex);
+                    const password = decoded.slice(separatorIndex + 1);
+
+                    req.user = await basicAuth({ email, password });
+                    break;
+                }
+
+                case "Bearer": {
+                await beraerAuth({req , tokentype})
+                    break;
+                }
+
+                default:
+                    throw UnauthorizedException({
+                        message: "Invalid authentication schema",
+                    });
+            }
+
+            return next();
+        } catch (error) {
+            return next(error);
         }
+    };
+};
 
-        next();
 
-    }
 
-}
+
 
 export const authorization = (accessRoles) => {
     return async (req, res, next) => {
-       if (req.user.level < accessRoles) {
-                    throw ForbiddenException("Forbidden Account");
-                }
-        next();
+        try {
+            if (req.user.level < accessRoles) {
+                throw ForbiddenException({
+                    message: "Forbidden Account",
+                });
+            }
 
-    }
-
-}
+            return next();
+        } catch (error) {
+            return next(error);
+        }
+    };
+};

@@ -7,6 +7,13 @@ import {
 } from "../../../config.js";
 import { BadRequestException } from "../../exeptions/error.exeptions.js";
 
+export const UserEmailKey = ({  email, subject }) => {
+  return `User::${email}::${subject}::OTP`;
+}
+export const UserEmailTrailsKey = ({  email, subject }) => {
+  return `${UserEmailKey({email , subject })}::Trails`
+}
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {

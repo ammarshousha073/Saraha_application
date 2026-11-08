@@ -3,3 +3,26 @@ node_modules/
 .env.*
 !.env.example
 video.txt
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Runtime uploads
+/assets/messages/*
+!/assets/messages/.gitkeep
+
+/assets/profiles/*
+!/assets/profiles/.gitkeep
+
+# Local files and backups
+/One.jpeg
+*.zip
+
+# Logs
+logs/
+*.log

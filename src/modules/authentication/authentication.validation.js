@@ -1,6 +1,7 @@
 
 import { z } from "zod";
 import { generalValidationFields } from "../../common/validation.js";
+import { LanguageEnum } from "../../common/enum/security.enum.js";
 
 
 export const loginSchema = z.strictObject({
@@ -49,6 +50,44 @@ gender: generalValidationFields.gender
 
 
 
+export const confirmEmail = (lang = LanguageEnum.AR) => {
+    return z.object({
+        body: z.strictObject({
+            email: generalValidationFields.email,
+            otp: generalValidationFields.otp(lang),
+        }),
+    });
+};
+
+
+
+
+export const ResendConfirmEmail = () => {
+    return z.object({
+        body: z.strictObject({
+            email: generalValidationFields.email,
+        }),
+    });
+};
+
+
+export const resetforgotpassword = (lang) =>
+    z.object({
+        body: z.object({
+            email: generalValidationFields.email,
+            otp: generalValidationFields.otp(lang),
+            password: generalValidationFields.password,
+            confirmPassword: generalValidationFields.confirmPassword,
+        }).superRefine((data, ctx) => {
+            if (data.password !== data.confirmPassword) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["confirmPassword"],
+                    message: "Password and confirm password do not match",
+                });
+            }
+        }),
+    });
 
 
 //     phone: z.e164(),

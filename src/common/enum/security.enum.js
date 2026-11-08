@@ -12,3 +12,7 @@ export const LanguageEnum = {
     AR : 0 , 
     EN : 1
 }
+export const LogoutEnum = {
+    DEVICE: "DEVICE",
+    ALL: "ALL",
+};

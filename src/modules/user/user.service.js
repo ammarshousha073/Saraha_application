@@ -3,6 +3,11 @@ import { UserModel } from "../../DB/model/user.model.js";
 import { createLoginCredentials } from "../../common/security/token.security.js";
 import { ACCESS_TOKEN_EXPIRES_IN } from "../../config.js";
 import { ConflictException } from "../../common/exeptions/error.exeptions.js";
+import { LogoutEnum } from "../../common/enum/security.enum.js";
+
+import {
+    createRevokeToken,
+} from "../../common/utlis/index.js";
 
 export const profile = async (account) => {
     
@@ -28,5 +33,30 @@ export const rotateToken = async (payload,user , issuer) => {
     }
 
 ///
-         return await createLoginCredentials({user ,issuer})
+const data = await createLoginCredentials({user ,issuer})
+await createRevokeToken({payload})
+return data;
+         
 }
+export const logout = async (
+    payload,
+    user,
+    { action = LogoutEnum.DEVICE } = {},
+) => {
+    switch (action) {
+        case LogoutEnum.ALL: {
+            user.changeCredentialsTime = new Date();
+            await user.save();
+            break;
+        }
+
+        default: {
+            await createRevokeToken({ payload });
+            break;
+        }
+    }
+
+    return {
+        message: "Logged out successfully",
+    };
+};

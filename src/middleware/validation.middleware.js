@@ -18,11 +18,22 @@ const currentSchema =
         ? schema(lang)
         : schema;
 
-const validationResult = currentSchema.safeParse({
+const requestData = {
     body: req.body,
     query: req.query,
     params: req.params,
-});
+    file: req.file,
+    files: req.files,
+};
+
+const validationData = Object.fromEntries(
+    Object.keys(currentSchema.shape).map((key) => [
+        key,
+        requestData[key]
+    ])
+);
+
+const validationResult = currentSchema.safeParse(validationData);
 
 
         if (!validationResult.success) {
